@@ -57,23 +57,27 @@ attendance_df.to_csv(f"code_output/{date_obj.strftime('%Y-%m-%d')}-attendance.cs
 
 # Get topic information
 
-titles = [takesSectionVO["title"] for takesSectionVO in data["takesSectionVOList"]]
-subtitles = [takesSectionVO["subTitle"] for takesSectionVO in data["takesSectionVOList"]]
-section_types = [takesSectionVO["sectionType"] for takesSectionVO in data["takesSectionVOList"]]
-question_counts = [takesSectionVO["questionCount"] for takesSectionVO in data["takesSectionVOList"]]
+takes_section_vo_list = data["takesSectionVOList"]
 
-order = list(range(1, len(data["takesSectionVOList"])+1))
+titles = [section["title"] for section in takes_section_vo_list]
+subtitles = [section["subTitle"] for section in takes_section_vo_list]
+section_types = [section["sectionType"] for section in takes_section_vo_list]
+question_counts = [section["questionCount"] for section in takes_section_vo_list]
 
-topic_cid = [f'{sitting_cid}-{o:03}' for o in order]
+order = list(range(1, len(takes_section_vo_list) + 1))
 
-topics_df = pd.DataFrame({'Date': [date_obj.strftime('%Y-%m-%d')] * len(data["takesSectionVOList"]),
-                          'Topic_CID': topic_cid,
-                          'Sitting_CID': [sitting_cid] * len(data["takesSectionVOList"]),
-                          'Order': order,
-                          'Title': titles,
-                          'Subtitle': subtitles,
-                          'Section_Type': section_types,
-                          'Question_Count': question_counts})
+topic_cid = [f"{sitting_cid}-{o:03}" for o in order]
+
+topics_df = pd.DataFrame({
+    "Date": [date_obj.strftime("%Y-%m-%d")] * len(takes_section_vo_list),
+    "Topic_CID": topic_cid,
+    "Sitting_CID": [sitting_cid] * len(takes_section_vo_list),
+    "Order": order,
+    "Title": titles,
+    "Subtitle": subtitles,
+    "Section_Type": section_types,
+    "Question_Count": question_counts,
+})
 
 topics_df.to_csv(f"code_output/{date_obj.strftime('%Y-%m-%d')}-topics.csv", index=False, mode='w')
 
