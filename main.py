@@ -42,13 +42,16 @@ sitting_df.to_csv(f"code_output/{date_obj.strftime('%Y-%m-%d')}-sitting.csv", in
 
 # Get attendance information
 
-member_names = [attendance["mpName"] for attendance in data["attendanceList"]]
-attendance_bool = [attendance["attendance"] for attendance in data["attendanceList"]]
+attendance_list = data["attendanceList"]
+member_names = [attendance["mpName"] for attendance in attendance_list]
+attendance_bool = [attendance["attendance"] for attendance in attendance_list]
 
-attendance_df = pd.DataFrame({'Date': [date_obj.strftime('%Y-%m-%d')] * len(data["attendanceList"]),
-                              'Sitting_CID': [sitting_cid] * len(data["attendanceList"]),
-                              'MP_Name': member_names,
-                              'Attendance': attendance_bool})
+attendance_df = pd.DataFrame({
+    "Date": [date_obj.strftime("%Y-%m-%d")] * len(attendance_list),
+    "Sitting_CID": [sitting_cid] * len(attendance_list),
+    "MP_Name": member_names,
+    "Attendance": attendance_bool,
+})
 
 attendance_df.to_csv(f"code_output/{date_obj.strftime('%Y-%m-%d')}-attendance.csv", index=False, mode='w')
 
