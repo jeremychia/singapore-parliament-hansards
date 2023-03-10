@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import datetime
 
-date = '14-02-2023'
+date = '27-02-2023'
 date_obj = datetime.datetime.strptime(date, '%d-%m-%Y')
 url = f"https://sprs.parl.gov.sg/search/getHansardReport/?sittingDate={date}"
 
@@ -34,31 +34,28 @@ for i in range(len(contents)):
 
     speakers = []
     texts = []
-    seq = []
+    sequences = []
 
-    for p in soup.find_all('p'):
-        if p.find("strong"):
-            speakers.append(str(p.strong.text).strip())
-            texts.append(str(p.find("strong").next_sibling).strip().replace('\xa0', ' ').replace(':', ' '))
-            j = 1
-            seq.append(j)
-        elif not p.find("strong") and soup.find_all('p').index(p) != 0:
-            speakers.append(speakers[soup.find_all('p').index(p) - 1])
-            texts.append(str(p.text).strip().replace('\xa0', ' ').replace(':', ' '))
-            j += 1
-            seq.append(j)
-        elif not p.find("strong") and soup.find_all('p').index(p) == 0:
-            speakers.append('')
-            texts.append(str(p.text).strip().replace('\xa0', ' ').replace(':', ' '))
-            j = 1
-            seq.append(j)
+    for index, p in enumerate(soup.find_all('p')):
+        if p.strong:
+            speaker = str(p.strong.text).strip()
+            text = str(p.find("strong").next_sibling)
+            sequence = 1
+        else:
+            speaker = speakers[-1] if index > 0 else ''
+            text = str(p.text)
+            sequence = sequences[-1] + 1 if index > 0 else 1
+        
+        speakers.append(speaker)
+        texts.append(text.strip().replace('\xa0', ' ').replace(':', ' '))
+        sequences.append(sequence)
 
     # Create dataframe
     df_temp = pd.DataFrame({'Date': [date_obj.strftime('%Y-%m-%d')] * len(speakers),
                            'Title': [titles[i]] * len(speakers),
                            'Speaker': speakers,
                            'Text': texts,
-                           'Seq': seq})
+                           'Seq': sequences})
 
     df = pd.concat([df, df_temp], ignore_index = True)
 
