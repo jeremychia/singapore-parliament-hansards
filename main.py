@@ -24,22 +24,19 @@ else:
 
 # Get sitting information
 
-parliament_number = data["metadata"]["parlimentNO"]
-session_number = data["metadata"]["sessionNO"]
-volume_number = data["metadata"]["volumeNO"]
-sitting_number = data["metadata"]["sittingNO"]
-sitting_date = datetime.datetime.strptime(data["metadata"]["sittingDate"], '%d-%m-%Y')
-parl_session_str = data["metadata"]["partSessionStr"]
+metadata = data["metadata"]
+sitting_cid = f"{metadata['parlimentNO']:03}-{metadata['sessionNO']:03}-{metadata['volumeNO']:03}-{metadata['sittingNO']:03}"
+sitting_date = datetime.datetime.strptime(metadata["sittingDate"], "%d-%m-%Y")
 
-sitting_cid = f'{parliament_number:03}-{session_number:03}-{volume_number:03}-{sitting_number:03}'
-
-sitting_df = pd.DataFrame({ 'Sitting_CID': [sitting_cid],
-                            'Sitting_Date': [sitting_date],
-                            'Parliament Session Str': [parl_session_str],
-                            'Parliament_Number': [parliament_number],
-                            'Session_Number': [session_number],
-                            'Volume_Number': [volume_number],
-                            'Sitting_Number': [sitting_number]})
+sitting_df = pd.DataFrame({
+    "Sitting_CID": [sitting_cid],
+    "Sitting_Date": [sitting_date],
+    "Parliament Session Str": [metadata["partSessionStr"]],
+    "Parliament_Number": [metadata["parlimentNO"]],
+    "Session_Number": [metadata["sessionNO"]],
+    "Volume_Number": [metadata["volumeNO"]],
+    "Sitting_Number": [metadata["sittingNO"]],
+})
 
 sitting_df.to_csv(f"code_output/{date_obj.strftime('%Y-%m-%d')}-sitting.csv", index=False, mode='w')
 
