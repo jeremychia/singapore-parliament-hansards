@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import pandas as pd
 import datetime
 
-date = '27-02-2023'
+date = '06-02-2023'
 date_obj = datetime.datetime.strptime(date, '%d-%m-%Y')
 url = f"https://sprs.parl.gov.sg/search/getHansardReport/?sittingDate={date}"
 
