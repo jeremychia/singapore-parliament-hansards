@@ -22,11 +22,22 @@ elif response.status_code == 500:
 else:
     print(f"Unexpected status code: {response.status_code}")
 
+# Get sitting information
+
+parliament_number = data["metadata"]["parlimentNO"]
+session_number = data["metadata"]["sessionNO"]
+volume_number = data["metadata"]["volumeNO"]
+sitting_number = data["metadata"]["sittingNO"]
+sitting_date = datetime.datetime.strptime(data["metadata"]["sittingDate"], '%d-%m-%Y')
+parl_session_str = data["metadata"]["partSessionStr"]
+
+session_cid = f'{parliament_number:03}-{session_number:03}-{volume_number:03}-{sitting_number:03}'
+
 # Get title and content
 titles = [takesSectionVO["title"] for takesSectionVO in data["takesSectionVOList"]]
 contents = [takesSectionVO["content"] for takesSectionVO in data["takesSectionVOList"]]
 
-df = pd.DataFrame(columns=['Date', 'Title', 'Speaker', 'Text', 'Seq'])
+speeches_df = pd.DataFrame(columns=['Date', 'Title', 'Speaker', 'Text', 'Seq'])
 
 for i in range(len(contents)):
     # Parse through content
@@ -57,6 +68,6 @@ for i in range(len(contents)):
                            'Text': texts,
                            'Seq': sequences})
 
-    df = pd.concat([df, df_temp], ignore_index = True)
+    speeches_df = pd.concat([speeches_df, df_temp], ignore_index = True)
 
-df.to_csv(f"code_output/{date_obj.strftime('%Y-%m-%d')}.csv", index=False, mode='w')
+speeches_df.to_csv(f"code_output/{date_obj.strftime('%Y-%m-%d')}.csv", index=False, mode='w')
