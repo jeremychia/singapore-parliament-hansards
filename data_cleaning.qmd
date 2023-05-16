@@ -1,9 +1,22 @@
+---
+title: "Untitled"
+format: html
+---
+
+Collect ouput in python
+
+```{python}
+
 import requests
 import json
 import pandas as pd
 import datetime
 import pdb
 from bs4 import BeautifulSoup
+
+```
+
+```{python}
 
 dates = pd.read_csv("seeds/dates.csv")
 
@@ -128,4 +141,152 @@ for index, row in dates.loc[dates['Version'] == 2].iterrows():
 
     speeches_df['Sitting_Seq'] = list(range(1, len(speeches_df)+1))
 
-    speeches_df.to_csv(f"code_output/{date_obj.strftime('%Y-%m-%d')}-speeches.csv", index=False, mode='w', encoding='utf-8-sig')
+    speeches_df.to_csv(f"code_output/{date_obj.strftime('%Y-%m-%d')}-speeches.csv", index=False, mode='w')
+
+
+
+```
+
+
+Now parse them in R first
+
+
+```{r}
+library(tidyverse)
+
+```
+
+```{r}
+
+files <- list.files("code_output", full.names = TRUE)
+
+speech_files <- files[grepl("speeches", files)]
+
+titles <- paste(c("Mr", "Ms", "Dr", "Prof", "Miss", "Mrs", "Assoc Prof", "Assoc", "Mdm"),
+                collapse = "|")
+
+outpath <- "cleaned_output/cleaned_speeches.csv"
+
+if(file.exists(outpath))
+  glossary <- read.csv(outpath) %>% .$Speaker
+
+list_df <- lapply(speech_files, function(x){
+  
+  df <- read.csv(x)
+  
+  # first remove all observations by parliamentary secretaries
+  
+  df <- df %>% 
+    filter(!grepl("Secretary", Speaker))
+  
+  #identify all names
+  
+  speakers <- unique(df$Speaker)
+  
+  # extract names
+  
+  names <- 
+    str_extract(speakers, sprintf("\\b(?:%s)\\b.*$", titles))
+  
+  # remove unnecessary characters
+  
+  names <- names %>% 
+    str_remove_all("\\).{0,}|\\(.{0,}|\\(.+\\)|[^a-zA-Z\\s]*$") %>% 
+    trimws()
+  
+  # remove chairpersons and speakers
+  
+  names <- names[!grepl("Chair|Speaker", names)]
+  
+  # remove NAs and duplicates
+  
+  names <- unique(names) %>% setdiff(NA)
+  
+  # remove singular strings
+  
+  names <- names[!grepl("^\\w+$", names)]
+  
+  # now remove titles
+  
+  names <- names %>% 
+    str_remove_all(paste0("\\b(", titles, ")\\b")) %>% 
+    trimws()
+  
+  # collect all NAs
+  
+  all_na <- 
+    df$Speaker[!grepl(paste(names, collapse="|"), df$Speaker)] %>% 
+    unique() %>% 
+    setdiff("")
+  
+  # check against existing glossary of names
+  
+  if(file.exists(outpath))
+    extra_names <- all_na[all_na %in% glossary]
+  
+  names <- c(extra_names, names)
+  
+  # now replace names
+  
+  df_replace <- df %>% 
+    mutate(Speaker = str_extract(Speaker, 
+                                 paste(paste0("(", names, ")"), 
+                                       collapse = "|")))
+  
+  # collect all NAs
+  
+  na_df <- data.frame(names = all_na %>% setdiff(extra_names),
+                      file = x)
+  
+  #now filter out NAs
+  
+  df_replace <- df_replace %>% 
+    filter(!is.na(Speaker))
+  
+  # now join speeches together
+  
+  run_length <- rle(df_replace$Speaker)$lengths
+  
+  df_trunc <- 
+    lapply(seq_along(run_length), function(x){
+      
+      if(x!=1) cur_row <- sum(run_length[1:x-1]) + 1 else cur_row <- 1
+      
+      speech_length <- run_length[x]
+      
+      new_df <- df_replace[cur_row:(cur_row+speech_length-1),]
+      
+      speech <- paste(new_df$Text, collapse = " ")
+      
+      new_df <- new_df[1,] %>% 
+        mutate(Text = speech)
+      
+      return(new_df)
+      
+    }) %>% 
+    bind_rows()
+  
+  return(list(data = df_trunc, na_names = na_df))
+  
+})
+
+# return df and names
+
+na_df <- lapply(seq_along(list_df), function(x){
+  
+  list_df[[x]] %>% .$na_names
+  
+}) %>% 
+  bind_rows()
+
+
+all_df <- lapply(seq_along(list_df), function(x){
+  
+  list_df[[x]] %>% .$data
+  
+}) %>% 
+  bind_rows()
+
+write.csv(all_df, outpath, row.names = FALSE, fileEncoding = "UTF-8")
+
+```
