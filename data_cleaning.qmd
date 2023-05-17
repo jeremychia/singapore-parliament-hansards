@@ -287,6 +287,151 @@ all_df <- lapply(seq_along(list_df), function(x){
 }) %>% 
   bind_rows()
 
+# remove empty speeches and some edits
+
+all_df <- all_df %>% 
+  mutate(across(c(Speaker, Text), trimws)) %>% 
+  mutate(Speaker = str_remove(Speaker, "\\W*$")) %>% 
+  filter(Text!="")
+
+# manually replace some names
+
+typo <- c("Deputy Speake")
+
+replace_df <- 
+  data.frame(old = c("Edwin Tong Chun Fai", "Josephine", "Muhamad Faisal bin Abdul Manap", "Pritam"),
+             new = c("Edwin Tong", "Josephine Teo", "Muhamad Faisal Bin Abdul Manap", "Pritam Singh"))
+
+names <- setNames(replace_df$new, replace_df$old)
+
+all_df <- all_df %>% 
+  filter(!Speaker %in% typo) %>% 
+  rowwise() %>% 
+  mutate(Speaker = if(Speaker %in% names(names)){
+    names[Speaker]
+  } else Speaker) %>% 
+  ungroup()
+
+# get length of speeches
+all_df <- all_df %>% 
+  rowwise() %>% 
+  mutate(word_count = length(unlist(strsplit(Text, "")))) %>% 
+  ungroup()
+
 write.csv(all_df, outpath, row.names = FALSE, fileEncoding = "UTF-8")
+
+```
+
+Randomly generate training data
+
+```{r}
+
+set.seed(1)
+
+train_data <- all_df %>% 
+  filter(word_count<2000 & word_count>500 &
+           !grepl("^ask.+$", Text)) %>% 
+  mutate(prompt = trimws(Text)) %>% 
+  select(prompt) %>% 
+  .[sample(1:nrow(.), 100),]
+
+
+train_data %>% 
+  write.csv("training_data/train_data.csv", row.names = FALSE)
+
+```
+
+
+Notes
+
+1. Some speeches are extremely long. The lengthiest is almost 20k words, by Shanmugam on the Parti Liyani case on 4 Nov 2020
+2. Models can only take up to 2048 tokens per request, or 4k tokens shared between prompt and completion. 1000 tokens is about 750 words.
+3. Across the entire dataset, if we filter out speeches with less than 2500 words and speakers who spoke above the median number of times, we are left with about 20k speeches. In total these speeches contain more than 17m words. The cost of the prompts alone (ignoring the output) would be about $460.
+5. An alternative is to randomly sample speeches. What does the cost curve look like?
+
+Run some calculations assuming davinci model
+
+```{r}
+
+# median number of times spoken
+
+min_speak <- all_df %>% 
+  group_by(Speaker) %>% 
+  mutate(n=n()) %>% 
+  .$n %>% 
+  median()
+
+set.seed(10)
+
+iterations <- 50
+
+word_counts <- seq(1000, 2500, 500)
+
+grid_df <- 
+  expand.grid(word_count = word_counts, 
+              n_sample = seq(10, 100, 20))
+
+cost_df <- lapply(1:nrow(grid_df), function(x){
+  
+  words <- grid_df$word_count[x]
+  n_sample <- grid_df$n_sample[x]
+  
+  cost <- sapply(1:iterations, function(y){
+    
+    word_count <- all_df %>% group_by(Speaker) %>% 
+      filter(n()>=min_speak & word_count<words) %>% 
+      slice(sample(1:n(), n_sample)) %>% 
+      .$word_count
+    
+    sum(word_count)*(4/3000)*0.02
+    
+  })
+  
+  cost <- mean(cost)
+  
+  data.frame(max_words = words, n_sample = n_sample, cost = cost)
+  
+}) %>% 
+  bind_rows()
+
+cost_df %>% 
+  mutate(max_words = factor(max_words)) %>% 
+  ggplot(aes(n_sample, cost, col = max_words)) + 
+  geom_point() +
+  geom_line() +
+  theme_minimal() +
+  ggtitle("Cost to sample ratio", 
+  subtitle = "n_sample corresponds to number of random samples to draw from speeches\ncost is averaged over 50 iterations")
+
+
+```
+
+Fine tuning
+
+We can fine tune data to run on ada model since this is intended to be simple classification. What we need is 
+1. Principled way to label data, preferably a rubric
+2. Oversample and overtrain on extreme observations. Most parliamentary speeches are rather vanilla and do not fall into any ideological category. One way to do this is to run a sample of speeches through davinci model and locate the speeches the model labels as extreme. 
+  - Something like a reinforcement learning approach
+
+
+
+# Analysis
+
+```{python}
+
+import os
+import openai
+openai.organization = "org-wnMCmS2u23RMIdDhjSZzSkJj"
+openai.api_key_path = "api-key/key.txt"
+
+completion = openai.Completion.create(
+  model = "text-davinci-003", 
+  prompt = "Rate the following parliamentary speech from 0-10 on the political left-right spectrum, 0 being extremely left, and 10 being extremely right. Provide justification for your score. Speech: Singaporeans do not want new citizens who do not want to live here but only want the power of the Singapore passport for their convenience and the safe and secure environment for their assets and wealth. We do not want new citizens who are reluctant for their sons to do National Service and, certainly, none of us want people who only want Singapore Citizenship as a stepping-stone to another country but, instead, seek those who have a long-term commitment to Singapore.",
+  temperature = 1,
+  max_tokens = 500)
+    
+print(completion.choices[0].text)
+
+
 
 ```
