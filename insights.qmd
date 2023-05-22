@@ -1,13 +1,127 @@
 ---
-title: "insights"
-format: html
+title: "Insights"
+date: "`r Sys.Date()`"
+format: 
+  html:
+    embed-resources: true
+    number-sections: true
+    code-fold: true
+    toc: true
+editor: source
 ---
 
 ```{r}
+#| include: false
+
+knitr::opts_chunk$set(warning = FALSE, message = FALSE)
+
+library(tidyverse)
+
+```
 
 
+# Gender representation in sessions (descriptive)
+
+Descriptive representation of women around 25% across sessions and doesn't shift that much across parliaments.
+
+```{r}
+
+# read data
+
+# get attendance data
+
+attn_df <- read.csv("cleaned_output/attendance.csv")
+
+gender_prop <- 
+  attn_df %>% 
+  mutate(female = ifelse(Gender=="F", 1, 0),
+         parl_session = paste0(parl, "_", Date)) %>% 
+  group_by(parl, parl_session) %>% 
+  summarise(female_prop = mean(female)) %>% 
+  mutate(parliament = factor(parl))
+
+gender_prop %>% 
+  ggplot(aes(female_prop, fill = parliament)) +
+  geom_histogram(binwidth = .01) +
+  ggtitle("Histogram of parliament attendance by gender, grouped by parliament")
 
 
 ```
 
+
+# Number of speeches and duration
+
+Men speak slightly more than women even after accounting for gender imbalance (inverse weighted). 14th parliament more skewed.
+
+```{r}
+# first clean some data
+
+all_df <- read_csv("cleaned_output/cleaned_speeches.csv")
+
+# filter out all speeches that are questions and only include speeches whose lengths are between 10 and 90 percentile
+
+quantiles <- 
+  quantile(all_df$word_count, probs = seq(0,1,0.1))[c(2,10)]
+
+all_df <- 
+  all_df %>% 
+  filter(!grepl("^(a|A)sk", Text) & 
+           between(word_count, quantiles[1], quantiles[2])) %>% 
+  mutate(parliament = factor(parl))
+
+
+```
+
+
+```{r}
+
+# how often do people speak?
+
+# we inverse weight by gender proportion
+
+weight_df <- 
+  gender_prop %>% 
+  rename(weight = female_prop) %>% 
+  group_by(parl_session) %>% 
+  slice(rep(1, 2)) %>% 
+  mutate(weight = c(weight[1], 1-weight[1]),
+         Gender = c("M", "F"))
+
+# calculate nunber of times each gender spoke within a session
+
+df_speak <- 
+  all_df %>% 
+  group_by(parl, parl_session, Gender) %>% 
+  summarise(n_speak = n())
+
+# now inverse weight by gender proportion for that session
+
+df_speak <- 
+  df_speak %>% 
+  left_join(weight_df) %>% 
+  mutate(n_speak = n_speak*weight)
+
+df_speak %>% 
+  ggplot(aes(n_speak, fill = Gender)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~parliament, ncol = 2, scales = "free") +
+  theme_minimal() +
+  ggtitle("Density plot of number of times people speak, faceted by parliament",
+          subtitle = "n_speak is inverse weighted by the gender proportion for that parliamentary session")
+
+```
+
+
+In addition to how many times parliamentarians speak, we can also plot how long speeches are. We see that speech lengths across genders are very similar.
+
+```{r}
+
+# what do speech lengths look like?
+
+all_df %>% 
+  ggplot(aes(word_count, fill = Gender)) +
+  geom_density(alpha = 0.5) +
+  ggtitle("Density plot of word length of speeches")
+
+```
 

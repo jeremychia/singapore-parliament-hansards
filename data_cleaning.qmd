@@ -291,7 +291,8 @@ all_df <- lapply(seq_along(list_df), function(x){
 
 all_df <- all_df %>% 
   mutate(across(c(Speaker, Text), trimws)) %>% 
-  mutate(Speaker = str_remove(Speaker, "\\W*$")) %>% 
+  mutate(Speaker = str_remove(Speaker, "^\\W*"),
+         Speaker = str_remove(Speaker, "\\W*$")) %>% 
   filter(Text!="")
 
 # manually replace some names
@@ -299,8 +300,8 @@ all_df <- all_df %>%
 typo <- c("Deputy Speake")
 
 replace_df <- 
-  data.frame(old = c("Edwin Tong Chun Fai", "Josephine", "Muhamad Faisal bin Abdul Manap", "Pritam"),
-             new = c("Edwin Tong", "Josephine Teo", "Muhamad Faisal Bin Abdul Manap", "Pritam Singh"))
+  data.frame(old = c("Edwin Tong Chun Fai", "Josephine", "Muhamad Faisal bin Abdul Manap", "Pritam", "Alex Yam Ziming", "Mohd Fahmi Aliman"),
+             new = c("Edwin Tong", "Josephine Teo", "Muhamad Faisal Bin Abdul Manap", "Pritam Singh", "Alex Yam", "Mohd Fahmi Bin Aliman"))
 
 names <- setNames(replace_df$new, replace_df$old)
 
@@ -312,13 +313,77 @@ all_df <- all_df %>%
   } else Speaker) %>% 
   ungroup()
 
+all_df <- all_df %>% 
+  mutate(Speaker = ifelse(Speeches_CID=="014-001-095-060-116-005",
+                          "Amy Khor Lean Suan", Speaker))
+
 # get length of speeches
 all_df <- all_df %>% 
   rowwise() %>% 
-  mutate(word_count = length(unlist(strsplit(Text, "")))) %>% 
+  mutate(word_count = length(unlist(strsplit(Text, " ")))) %>% 
   ungroup()
 
-write.csv(all_df, outpath, row.names = FALSE, fileEncoding = "UTF-8")
+# extract parliamentary session
+
+all_df <- 
+  all_df %>% 
+  mutate(parl = str_extract(Speeches_CID, "^([^-]*)") %>% as.numeric(),
+         parl_session = paste0(parl, "_", Date))
+
+# add gender
+
+gender_df <- read_csv("cleaned_output/gender_df.csv")
+
+all_df <- all_df %>% 
+  left_join(gender_df)
+
+# now write
+
+write_excel_csv(all_df, outpath)
+
+
+# get attendance data
+
+attn_files <- files[grepl("attendance", files)]
+
+attn_df <- 
+  lapply(attn_files, function(x)read.csv(x)) %>% 
+  bind_rows()
+
+# fix names
+
+names <- c(all_df$Speaker %>% unique, c("Lee Kuan Yew", "Raymond Lim Siang Keat", "Mohd Fahmi Aliman"))
+
+attn_df <- attn_df %>% 
+  rename(Speaker = MP_Name) %>% 
+  mutate(Speaker = str_remove(Speaker, "^\\W*"),
+         Speaker = str_remove(Speaker, "\\W*$"),
+         Speaker = trimws(Speaker),
+         Speaker = str_replace(Speaker, "Mohd Fahmi Aliman", "Mohd Fahmi Bin Aliman"))
+
+#extract names
+
+attn_df_new <- 
+  attn_df %>% 
+  mutate(Speaker = str_extract(Speaker, paste(names, collapse = "|")))
+
+# check omitted
+
+attn_df$Speaker[is.na(attn_df_new$Speaker)] %>% unique
+
+# now write
+
+attn_df_new <- 
+  attn_df_new %>% 
+  filter(!is.na(Speaker)) %>% 
+  mutate(Attendance = ifelse(Attendance=="True", 1, 0)) %>% 
+  left_join(gender_df) %>% 
+  mutate(parl = str_extract(Sitting_CID, "^([^-]*)") %>% as.numeric(),
+         parl_session = paste0(parl, "_", Date))
+
+attn_df_new %>% 
+  write_excel_csv("cleaned_output/attendance.csv")
+
 
 ```
 
@@ -337,7 +402,7 @@ train_data <- all_df %>%
 
 
 train_data %>% 
-  write.csv("training_data/train_data.csv", row.names = FALSE)
+  write_excel_csv("training_data/train_data.csv")
 
 ```
 
