@@ -33,7 +33,7 @@ def prepare_df_to_append(new_sitting_dates, version = 2):
     return pd.DataFrame({
         "Sitting_Date": new_sitting_dates,
         "Version": [version] * len(new_sitting_dates),
-        "Date_Added": [date.today().strftime('%d-%m-%Y')] * len(new_sitting_dates)
+        "Date_Added": [date.today().strftime('%Y-%m-%d')] * len(new_sitting_dates)
         })
         
     
