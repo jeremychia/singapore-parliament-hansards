@@ -6,6 +6,7 @@ import pdb
 from bs4 import BeautifulSoup
 
 dates = pd.read_csv("seeds/dates.csv")
+dates = dates.loc[dates['Date_Added'] == datetime.date.today().strftime('%Y-%m-%d')]
 
 for index, row in dates.loc[dates['Version'] == 2].iterrows():
     date = row['Sitting_Date'] # 2012-09-10
@@ -15,6 +16,7 @@ for index, row in dates.loc[dates['Version'] == 2].iterrows():
     # Get Responses
     response = requests.get(url)
 
+    print(date_obj)
     if response.status_code == 200:
         # Do something with the response data
         data = response.json()
