@@ -56,4 +56,4 @@ unchecked_dates_df = unchecked_dates(last_date_checked(df['Sitting_Date']))
 new_sitting_dates_list = new_parliament_sitting_dates(unchecked_dates_df)
 
 append_df = prepare_df_to_append(new_sitting_dates_list, version)
-append_df.to_csv(date_seeds_file_path, mode = 'a', index = False, header = False)
+append_df.to_csv(current_folder_path(filename), mode = 'a', index = False, header = False)
