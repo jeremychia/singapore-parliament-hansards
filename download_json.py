@@ -112,9 +112,10 @@ for index, row in dates.loc[dates['Version'] == 2].iterrows():
                 text = str(p.text)
                 sequence = sequences[-1] + 1 if index > 0 else 1
             
-            speakers.append(speaker)
-            texts.append(text.strip().replace('\xa0', ' ').replace(':', ' '))
-            sequences.append(sequence)
+            if text != 'None':
+                speakers.append(speaker)
+                texts.append(text.strip().replace('\xa0', ' ').replace(':', ' ').strip())
+                sequences.append(sequence)
 
         # Create dataframe
         df_temp = pd.DataFrame({'Date': [date_obj.strftime('%Y-%m-%d')] * len(speakers),
