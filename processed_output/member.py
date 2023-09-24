@@ -2,6 +2,30 @@ import pandas as pd
 from datetime import date
 import os
 
+def get_source_file_path(csv_subfolder):
+    '''
+    This assumes that the Python Script
+    is in one subfolder layer from the root.
+    '''
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_directory, _ = os.path.split(script_dir)
+
+    return os.path.join(root_directory, csv_subfolder)
+
+def join_df(df1, df2, df2_name, join_on = 'MP_Name'):
+
+    merged_df = pd.merge(df1, df2,
+                         on=join_on,
+                         how='left')
+
+    mp_names_difference = set(df1[join_on]) - set(df2[join_on])
+
+    for mp_name in mp_names_difference:
+        print(f'Missing: {mp_name}, check {df2_name}.')
+
+    return merged_df
+
 def summarise_attendance_information(df):
 
     return df.groupby('MP_Name').agg(
@@ -39,11 +63,18 @@ def write_csv(csv_filename, df):
 script_dir = os.path.dirname(os.path.abspath(__file__))
 attendance_file = 'fact_attendance.csv'
 member_file = 'dim_member.csv'
+gender_file = 'seeds\\gender.csv'
 today_date = date.today().strftime('%Y-%m-%d')
 
 ### Main run here
 
 attendance_df = pd.read_csv(os.path.join(script_dir, attendance_file))
+gender_df = pd.read_csv(os.path.join(
+    get_source_file_path(gender_file))
+    )
 
 df = summarise_attendance_information(attendance_df)
+
+df = join_df(df, gender_df, 'gender') 
+
 write_csv(os.path.join(script_dir, member_file), df)
