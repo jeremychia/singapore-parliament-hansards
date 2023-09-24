@@ -64,17 +64,23 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 attendance_file = 'fact_attendance.csv'
 member_file = 'dim_member.csv'
 gender_file = 'seeds\\gender.csv'
+party_file = 'seeds\\party.csv'
 today_date = date.today().strftime('%Y-%m-%d')
 
 ### Main run here
 
 attendance_df = pd.read_csv(os.path.join(script_dir, attendance_file))
+
 gender_df = pd.read_csv(os.path.join(
     get_source_file_path(gender_file))
+    )
+party_df = pd.read_csv(os.path.join(
+    get_source_file_path(party_file))
     )
 
 df = summarise_attendance_information(attendance_df)
 
-df = join_df(df, gender_df, 'gender') 
+df = join_df(df, gender_df, 'gender')
+df = join_df(df, party_df, 'party') 
 
 write_csv(os.path.join(script_dir, member_file), df)
