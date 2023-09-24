@@ -2,6 +2,11 @@ import requests
 import pandas as pd
 import datetime
 from datetime import date
+import os
+
+def current_folder_path(filename):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(script_dir, filename)
 
 def last_date_checked(list_of_dates):
     return datetime.datetime.strptime(max(list_of_dates), '%Y-%m-%d')
@@ -41,11 +46,11 @@ def prepare_df_to_append(new_sitting_dates, version = 2):
 ### Variables ###
 
 version = 2
-date_seeds_file_path = 'dates.csv'
+filename = 'dates.csv'
 
 ### Runs from here ###
 
-df = pd.read_csv(date_seeds_file_path)
+df = pd.read_csv(current_folder_path(filename))
 
 unchecked_dates_df = unchecked_dates(last_date_checked(df['Sitting_Date']))
 new_sitting_dates_list = new_parliament_sitting_dates(unchecked_dates_df)
