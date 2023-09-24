@@ -74,7 +74,7 @@ def log_files_processed(csv_filename, files_processed):
 
     files_processed_df = pd.DataFrame({
             'file_name': files_processed,
-            'processed_date': [today_date] * len(files_processed)
+            'processed_at': [today_date] * len(files_processed)
         })
 
     write_csv(csv_filename, files_processed_df)
