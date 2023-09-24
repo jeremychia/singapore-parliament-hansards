@@ -24,10 +24,10 @@ def new_parliament_sitting_dates(unchecked_dates):
         
         # Get responses
         if response.status_code == 200:
-            new_dates.append(date.strftime('%d-%m-%Y'))
-            print(date.strftime('%d-%m-%Y'), 'ok')
+            new_dates.append(date.strftime('%Y-%m-%d'))
+            print(date.strftime('%Y-%m-%d'), 'ok')
         else:
-            print(date.strftime('%d-%m-%Y'), 'status code: ', str(response.status_code))
+            print(date.strftime('%Y-%m-%d'), 'status code: ', str(response.status_code))
 
         
 
