@@ -106,6 +106,8 @@ for index, row in dates.loc[dates['Version'] == 2].iterrows():
             if p.strong:
                 speaker = str(p.strong.text).strip()
                 text = str(p.find("strong").next_sibling)
+                if p.find("span"): # In cases where there are 'span's in the text
+                    text = text + ' ' + p.find('span').get_text()
                 sequence = 1
             else:
                 speaker = speakers[-1] if index > 0 else ''
