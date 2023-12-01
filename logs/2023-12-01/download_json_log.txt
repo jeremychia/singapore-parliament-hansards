@@ -1,0 +1,14 @@
+2023-10-03 00:00:00
+Request succeeded.
+2023-10-04 00:00:00
+Request succeeded.
+2023-11-06 00:00:00
+Request succeeded.
+2023-11-07 00:00:00
+Request succeeded.
+2023-11-22 00:00:00
+Request succeeded.
+Traceback (most recent call last):
+  File "C:\Users\Jeremy Chia\Git\singapore-parliament-hansards\download_json.py", line 113, in <module>
+    speaker = speakers[-1] if index > 0 else ''
+IndexError: list index out of range
