@@ -362,7 +362,7 @@ end_date = '2023-12-01'
 dates_to_process = get_dates(script_dir, start_date, end_date)
 additional_stopwords = ['singapore', 'speaker', 'minister', 'asked', 'question',\
                         'please', 'whether', 'year', 'may']
-n_components_range = [i+1 for i in range(15)]
+n_components_range = [i+1 for i in range(10)]
 
 ### Main run here
 
