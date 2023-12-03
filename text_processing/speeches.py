@@ -15,6 +15,19 @@ from sklearn.metrics import silhouette_score
 from gensim.models import CoherenceModel
 import matplotlib.pyplot as plt
 
+def get_dates(script_dir, start_date, end_date):
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_directory, _ = os.path.split(script_dir)
+
+    dates = pd.read_csv(root_directory+'\\seeds\\dates.csv')
+    dates['Sitting_Date'] = pd.to_datetime(dates['Sitting_Date'],
+                                           format='%Y-%m-%d')
+
+    date_range_boolean = (dates['Sitting_Date'] >= start_date)\
+                         & (dates['Sitting_Date'] <= end_date)
+
+    return list(dates[date_range_boolean]['Sitting_Date'].astype(str))
 
 def get_source_file_path(csv_subfolder):
     '''
@@ -25,7 +38,7 @@ def get_source_file_path(csv_subfolder):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     root_directory, _ = os.path.split(script_dir)
 
-    return os.path.join(root_directory, csv_subfolder)
+    return os.path.join(root_directory, csv_subfolder), root_directory
 
 def get_speech_file_names(source_file_path, dates_to_process):
 
@@ -35,6 +48,10 @@ def get_speech_file_names(source_file_path, dates_to_process):
     return temp
 
 def clean_text(text, additional_stopwords):
+
+    # Cast to string
+    text = str(text)
+
     # Convert to lowercase
     text = text.lower()
 
@@ -84,7 +101,7 @@ def get_mp_name(x):
     else:
         return ''
 
-def intiailise_lda_model(cleaned_text, num_topics):
+def prepare_lda_model(cleaned_text):
 
     # Step 1: Tokenize the cleaned text column
     tokenized_text = cleaned_text.apply(lambda x: x.split())
@@ -95,14 +112,18 @@ def intiailise_lda_model(cleaned_text, num_topics):
     # Step 3: Convert the tokenized documents into a document-term matrix
     corpus = [dictionary.doc2bow(text) for text in tokenized_text]
 
+    return tokenized_text, dictionary, corpus
+
+def intiailise_lda_model(corpus, dictionary, num_topics):
+
     # Step 4: Apply the LDA model
-    lda_model = models.LdaModel(corpus,\
-                                num_topics=num_topics,\
-                                id2word=dictionary,\
-                                passes=15,\
+    lda_model = models.LdaModel(corpus,
+                                num_topics=num_topics,
+                                id2word=dictionary,
+                                passes=15,
                                 random_state=42)
 
-    return lda_model, dictionary, corpus
+    return lda_model
 
 def evaluate_model(cleaned_text, n_components_range):
 
@@ -111,11 +132,13 @@ def evaluate_model(cleaned_text, n_components_range):
     vectorizer = CountVectorizer()
     dtm = vectorizer.fit_transform(documents)
 
+    tokenized_text, dictionary, corpus = prepare_lda_model(cleaned_text)
+
     perplexity_scores = []
 
     for num_topics in n_components_range:
 
-        lda_model, _, corpus = intiailise_lda_model(cleaned_text, num_topics)
+        lda_model = intiailise_lda_model(corpus, dictionary, num_topics)
 
         # Calculate perplexity score
         perplexity_score = lda_model.log_perplexity(corpus)
@@ -134,21 +157,34 @@ def plot_grid_search(n_components_range, perplexity_scores):
 
     return 0
 
+def get_optimal_topics(n_components_range, perplexity_scores):
+
+    # Log perplexity scores are negative.
+    # Values closer to zero (less negative) are better.
+
+    optimal_index = perplexity_scores.index(max(perplexity_scores))
+    optimal_num_topics = n_components_range[optimal_index]
+
+    return optimal_num_topics
+
 ### Variables
 
 csv_subfolder = 'code_output'
 script_dir = os.path.dirname(os.path.abspath(__file__))
-dates_to_process = ['2023-11-22']
+start_date = '2023-01-01'
+end_date = '2023-12-01'
+dates_to_process = get_dates(script_dir, start_date, end_date)
 additional_stopwords = ['singapore', 'speaker', 'minister', 'asked', 'question',\
                         'please', 'whether', 'year', 'may']
 n_components_range = [i+1 for i in range(15)]
 
 ### Main run here
 
-speech_files_dir = get_source_file_path(csv_subfolder)
+speech_files_dir, root_directory = get_source_file_path(csv_subfolder)
 speech_files = get_speech_file_names(speech_files_dir, dates_to_process)
 
-df = pd.read_csv(speech_files[0])
+dfs = [pd.read_csv(file) for file in speech_files]
+df = pd.concat(dfs, ignore_index=True)
 
 ## Processing
 
@@ -160,8 +196,10 @@ df['cleaned_text'] = df['Text']\
 
 perplexity_scores = evaluate_model(df['cleaned_text'], n_components_range)
 plot_grid_search(n_components_range, perplexity_scores)
+optimal_num_topics = get_optimal_topics(n_components_range, perplexity_scores)
 
-lda_model, dictionary, corpus = intiailise_lda_model(df['cleaned_text'], 5)
+tokenized_text, dictionary, corpus = prepare_lda_model(df['cleaned_text'])
+lda_model = intiailise_lda_model(corpus, dictionary, optimal_num_topics)
 df['topics'] = df['cleaned_text'].apply(lambda x: lda_model[dictionary.doc2bow(x.split())])
 
 for index, row in df.iterrows():
