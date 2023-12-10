@@ -67,6 +67,11 @@ def get_source_file_path(csv_subfolder):
     from the root directory.
     """
 
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    root_directory, _ = os.path.split(script_dir)
+
+    return os.path.join(root_directory, csv_subfolder), root_directory
+
 def get_speech_file_names(source_file_path, dates_to_process):
     """
     Generate a list of speech file names based on the provided source file path and dates.
@@ -357,12 +362,12 @@ def get_optimal_topics(n_components_range, perplexity_scores):
 
 csv_subfolder = 'code_output'
 script_dir = os.path.dirname(os.path.abspath(__file__))
-start_date = '2023-01-01'
+start_date = '2020-07-25'
 end_date = '2023-12-01'
 dates_to_process = get_dates(script_dir, start_date, end_date)
 additional_stopwords = ['singapore', 'speaker', 'minister', 'asked', 'question',\
                         'please', 'whether', 'year', 'may']
-n_components_range = [i+1 for i in range(10)]
+n_components_range = [i+1 for i in range(15)]
 
 ### Main run here
 
