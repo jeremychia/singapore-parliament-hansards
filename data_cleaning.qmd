@@ -122,7 +122,7 @@ for index, row in dates.loc[dates['Version'] == 2].iterrows():
                 speaker = speakers[-1] if index > 0 else ''
                 text = str(p.text)
                 sequence = sequences[-1] + 1 if index > 0 else 1
-            
+
             speakers.append(speaker)
             texts.append(text.strip().replace('\xa0', ' ').replace(':', ' '))
             sequences.append(sequence)
@@ -171,162 +171,162 @@ if(file.exists(outpath))
   glossary <- read.csv(outpath) %>% .$Speaker
 
 list_df <- lapply(speech_files, function(x){
-  
+
   df <- read.csv(x)
-  
+
   # first remove all observations by parliamentary secretaries
-  
-  df <- df %>% 
+
+  df <- df %>%
     filter(!grepl("Secretary", Speaker))
-  
+
   #identify all names
-  
+
   speakers <- unique(df$Speaker)
-  
+
   # extract names
-  
-  names <- 
+
+  names <-
     str_extract(speakers, sprintf("\\b(?:%s)\\b.*$", titles))
-  
+
   # remove unnecessary characters
-  
-  names <- names %>% 
-    str_remove_all("\\).{0,}|\\(.{0,}|\\(.+\\)|[^a-zA-Z\\s]*$") %>% 
+
+  names <- names %>%
+    str_remove_all("\\).{0,}|\\(.{0,}|\\(.+\\)|[^a-zA-Z\\s]*$") %>%
     trimws()
-  
+
   # remove chairpersons and speakers
-  
+
   names <- names[!grepl("Chair|Speaker", names)]
-  
+
   # remove NAs and duplicates
-  
+
   names <- unique(names) %>% setdiff(NA)
-  
+
   # remove singular strings
-  
+
   names <- names[!grepl("^\\w+$", names)]
-  
+
   # now remove titles
-  
-  names <- names %>% 
-    str_remove_all(paste0("\\b(", titles, ")\\b")) %>% 
+
+  names <- names %>%
+    str_remove_all(paste0("\\b(", titles, ")\\b")) %>%
     trimws()
-  
+
   # collect all NAs
-  
-  all_na <- 
-    df$Speaker[!grepl(paste(names, collapse="|"), df$Speaker)] %>% 
-    unique() %>% 
+
+  all_na <-
+    df$Speaker[!grepl(paste(names, collapse="|"), df$Speaker)] %>%
+    unique() %>%
     setdiff("")
-  
+
   # check against existing glossary of names
-  
+
   if(file.exists(outpath))
     extra_names <- all_na[all_na %in% glossary]
-  
+
   names <- c(extra_names, names)
-  
+
   # now replace names
-  
-  df_replace <- df %>% 
-    mutate(Speaker = str_extract(Speaker, 
-                                 paste(paste0("(", names, ")"), 
+
+  df_replace <- df %>%
+    mutate(Speaker = str_extract(Speaker,
+                                 paste(paste0("(", names, ")"),
                                        collapse = "|")))
-  
+
   # collect all NAs
-  
+
   na_df <- data.frame(names = all_na %>% setdiff(extra_names),
                       file = x)
-  
+
   #now filter out NAs
-  
-  df_replace <- df_replace %>% 
+
+  df_replace <- df_replace %>%
     filter(!is.na(Speaker))
-  
+
   # now join speeches together
-  
+
   run_length <- rle(df_replace$Speaker)$lengths
-  
-  df_trunc <- 
+
+  df_trunc <-
     lapply(seq_along(run_length), function(x){
-      
+
       if(x!=1) cur_row <- sum(run_length[1:x-1]) + 1 else cur_row <- 1
-      
+
       speech_length <- run_length[x]
-      
+
       new_df <- df_replace[cur_row:(cur_row+speech_length-1),]
-      
+
       speech <- paste(new_df$Text, collapse = " ")
-      
-      new_df <- new_df[1,] %>% 
+
+      new_df <- new_df[1,] %>%
         mutate(Text = speech)
-      
+
       return(new_df)
-      
-    }) %>% 
+
+    }) %>%
     bind_rows()
-  
+
   return(list(data = df_trunc, na_names = na_df))
-  
+
 })
 
 # return df and names
 
 na_df <- lapply(seq_along(list_df), function(x){
-  
+
   list_df[[x]] %>% .$na_names
-  
-}) %>% 
+
+}) %>%
   bind_rows()
 
 
 all_df <- lapply(seq_along(list_df), function(x){
-  
+
   list_df[[x]] %>% .$data
-  
-}) %>% 
+
+}) %>%
   bind_rows()
 
 # remove empty speeches and some edits
 
-all_df <- all_df %>% 
-  mutate(across(c(Speaker, Text), trimws)) %>% 
+all_df <- all_df %>%
+  mutate(across(c(Speaker, Text), trimws)) %>%
   mutate(Speaker = str_remove(Speaker, "^\\W*"),
-         Speaker = str_remove(Speaker, "\\W*$")) %>% 
+         Speaker = str_remove(Speaker, "\\W*$")) %>%
   filter(Text!="")
 
 # manually replace some names
 
 typo <- c("Deputy Speake")
 
-replace_df <- 
+replace_df <-
   data.frame(old = c("Edwin Tong Chun Fai", "Josephine", "Muhamad Faisal bin Abdul Manap", "Pritam", "Alex Yam Ziming", "Mohd Fahmi Aliman"),
              new = c("Edwin Tong", "Josephine Teo", "Muhamad Faisal Bin Abdul Manap", "Pritam Singh", "Alex Yam", "Mohd Fahmi Bin Aliman"))
 
 names <- setNames(replace_df$new, replace_df$old)
 
-all_df <- all_df %>% 
-  filter(!Speaker %in% typo) %>% 
-  rowwise() %>% 
+all_df <- all_df %>%
+  filter(!Speaker %in% typo) %>%
+  rowwise() %>%
   mutate(Speaker = if(Speaker %in% names(names)){
     names[Speaker]
-  } else Speaker) %>% 
+  } else Speaker) %>%
   ungroup()
 
-all_df <- all_df %>% 
+all_df <- all_df %>%
   mutate(Speaker = ifelse(Speeches_CID=="014-001-095-060-116-005",
                           "Amy Khor Lean Suan", Speaker))
 
 # get length of speeches
-all_df <- all_df %>% 
-  rowwise() %>% 
-  mutate(word_count = length(unlist(strsplit(Text, " ")))) %>% 
+all_df <- all_df %>%
+  rowwise() %>%
+  mutate(word_count = length(unlist(strsplit(Text, " ")))) %>%
   ungroup()
 
 # extract parliamentary session
 
-all_df <- 
-  all_df %>% 
+all_df <-
+  all_df %>%
   mutate(parl = str_extract(Speeches_CID, "^([^-]*)") %>% as.numeric(),
          parl_session = paste0(parl, "_", Date))
 
@@ -334,7 +334,7 @@ all_df <-
 
 gender_df <- read_csv("cleaned_output/gender_df.csv")
 
-all_df <- all_df %>% 
+all_df <- all_df %>%
   left_join(gender_df)
 
 # now write
@@ -346,16 +346,16 @@ write_excel_csv(all_df, outpath)
 
 attn_files <- files[grepl("attendance", files)]
 
-attn_df <- 
-  lapply(attn_files, function(x)read.csv(x)) %>% 
+attn_df <-
+  lapply(attn_files, function(x)read.csv(x)) %>%
   bind_rows()
 
 # fix names
 
 names <- c(all_df$Speaker %>% unique, c("Lee Kuan Yew", "Raymond Lim Siang Keat", "Mohd Fahmi Aliman"))
 
-attn_df <- attn_df %>% 
-  rename(Speaker = MP_Name) %>% 
+attn_df <- attn_df %>%
+  rename(Speaker = MP_Name) %>%
   mutate(Speaker = str_remove(Speaker, "^\\W*"),
          Speaker = str_remove(Speaker, "\\W*$"),
          Speaker = trimws(Speaker),
@@ -363,8 +363,8 @@ attn_df <- attn_df %>%
 
 #extract names
 
-attn_df_new <- 
-  attn_df %>% 
+attn_df_new <-
+  attn_df %>%
   mutate(Speaker = str_extract(Speaker, paste(names, collapse = "|")))
 
 # check omitted
@@ -373,15 +373,15 @@ attn_df$Speaker[is.na(attn_df_new$Speaker)] %>% unique
 
 # now write
 
-attn_df_new <- 
-  attn_df_new %>% 
-  filter(!is.na(Speaker)) %>% 
-  mutate(Attendance = ifelse(Attendance=="True", 1, 0)) %>% 
-  left_join(gender_df) %>% 
+attn_df_new <-
+  attn_df_new %>%
+  filter(!is.na(Speaker)) %>%
+  mutate(Attendance = ifelse(Attendance=="True", 1, 0)) %>%
+  left_join(gender_df) %>%
   mutate(parl = str_extract(Sitting_CID, "^([^-]*)") %>% as.numeric(),
          parl_session = paste0(parl, "_", Date))
 
-attn_df_new %>% 
+attn_df_new %>%
   write_excel_csv("cleaned_output/attendance.csv")
 
 
@@ -393,15 +393,15 @@ Randomly generate training data
 
 set.seed(1)
 
-train_data <- all_df %>% 
+train_data <- all_df %>%
   filter(word_count<2000 & word_count>500 &
-           !grepl("^ask.+$", Text)) %>% 
-  mutate(prompt = trimws(Text)) %>% 
-  select(prompt) %>% 
+           !grepl("^ask.+$", Text)) %>%
+  mutate(prompt = trimws(Text)) %>%
+  select(prompt) %>%
   .[sample(1:nrow(.), 100),]
 
 
-train_data %>% 
+train_data %>%
   write_excel_csv("training_data/train_data.csv")
 
 ```
@@ -420,10 +420,10 @@ Run some calculations assuming davinci model
 
 # median number of times spoken
 
-min_speak <- all_df %>% 
-  group_by(Speaker) %>% 
-  mutate(n=n()) %>% 
-  .$n %>% 
+min_speak <- all_df %>%
+  group_by(Speaker) %>%
+  mutate(n=n()) %>%
+  .$n %>%
   median()
 
 set.seed(10)
@@ -432,40 +432,40 @@ iterations <- 50
 
 word_counts <- seq(1000, 2500, 500)
 
-grid_df <- 
-  expand.grid(word_count = word_counts, 
+grid_df <-
+  expand.grid(word_count = word_counts,
               n_sample = seq(10, 100, 20))
 
 cost_df <- lapply(1:nrow(grid_df), function(x){
-  
+
   words <- grid_df$word_count[x]
   n_sample <- grid_df$n_sample[x]
-  
+
   cost <- sapply(1:iterations, function(y){
-    
-    word_count <- all_df %>% group_by(Speaker) %>% 
-      filter(n()>=min_speak & word_count<words) %>% 
-      slice(sample(1:n(), n_sample)) %>% 
+
+    word_count <- all_df %>% group_by(Speaker) %>%
+      filter(n()>=min_speak & word_count<words) %>%
+      slice(sample(1:n(), n_sample)) %>%
       .$word_count
-    
+
     sum(word_count)*(4/3000)*0.02
-    
+
   })
-  
+
   cost <- mean(cost)
-  
+
   data.frame(max_words = words, n_sample = n_sample, cost = cost)
-  
-}) %>% 
+
+}) %>%
   bind_rows()
 
-cost_df %>% 
-  mutate(max_words = factor(max_words)) %>% 
-  ggplot(aes(n_sample, cost, col = max_words)) + 
+cost_df %>%
+  mutate(max_words = factor(max_words)) %>%
+  ggplot(aes(n_sample, cost, col = max_words)) +
   geom_point() +
   geom_line() +
   theme_minimal() +
-  ggtitle("Cost to sample ratio", 
+  ggtitle("Cost to sample ratio",
   subtitle = "n_sample corresponds to number of random samples to draw from speeches\ncost is averaged over 50 iterations")
 
 
@@ -473,9 +473,9 @@ cost_df %>%
 
 Fine tuning
 
-We can fine tune data to run on ada model since this is intended to be simple classification. What we need is 
+We can fine tune data to run on ada model since this is intended to be simple classification. What we need is
 1. Principled way to label data, preferably a rubric
-2. Oversample and overtrain on extreme observations. Most parliamentary speeches are rather vanilla and do not fall into any ideological category. One way to do this is to run a sample of speeches through davinci model and locate the speeches the model labels as extreme. 
+2. Oversample and overtrain on extreme observations. Most parliamentary speeches are rather vanilla and do not fall into any ideological category. One way to do this is to run a sample of speeches through davinci model and locate the speeches the model labels as extreme.
   - Something like a reinforcement learning approach
 
 
@@ -490,11 +490,11 @@ openai.organization = "org-wnMCmS2u23RMIdDhjSZzSkJj"
 openai.api_key_path = "api-key/key.txt"
 
 completion = openai.Completion.create(
-  model = "text-davinci-003", 
+  model = "text-davinci-003",
   prompt = "Rate the following parliamentary speech from 0-10 on the political left-right spectrum, 0 being extremely left, and 10 being extremely right. Provide justification for your score. Speech: Singaporeans do not want new citizens who do not want to live here but only want the power of the Singapore passport for their convenience and the safe and secure environment for their assets and wealth. We do not want new citizens who are reluctant for their sons to do National Service and, certainly, none of us want people who only want Singapore Citizenship as a stepping-stone to another country but, instead, seek those who have a long-term commitment to Singapore.",
   temperature = 1,
   max_tokens = 500)
-    
+
 print(completion.choices[0].text)
 
 

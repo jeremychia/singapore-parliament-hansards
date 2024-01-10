@@ -14,9 +14,11 @@ options = Options()
 options.add_argument("start-maximized")
 
 # Set up the Chrome web driver
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+driver = webdriver.Chrome(
+    service=Service(ChromeDriverManager().install()), options=options
+)
 
-url = 'https://sprs.parl.gov.sg/search/#/sprs3topic?reportid=budget-2054' #2034
+url = "https://sprs.parl.gov.sg/search/#/sprs3topic?reportid=budget-2054"  # 2034
 driver.get(url)
 
 # Wait for the page to fully load
@@ -27,8 +29,8 @@ speeches = []
 
 
 # Find all the p elements on the page
-paragraphs = driver.find_elements(By.TAG_NAME, 'p')
-print("Number of Paragraphs: "+ str(len(paragraphs)))
+paragraphs = driver.find_elements(By.TAG_NAME, "p")
+print("Number of Paragraphs: " + str(len(paragraphs)))
 
 # Iterate over the paragraphs and get their text
 for p in paragraphs:
@@ -37,14 +39,16 @@ for p in paragraphs:
         print("Iteration (Standard): " + str(paragraphs.index(p)))
         print(p_text)
     except StaleElementReferenceException:
-        alternate_element = driver.find_element(By.XPATH, "//p[" + str(paragraphs.index(p)+1) + "]" )
+        alternate_element = driver.find_element(
+            By.XPATH, "//p[" + str(paragraphs.index(p) + 1) + "]"
+        )
         p_text = alternate_element.text
         print("Iteration (Exception): " + str(paragraphs.index(p)))
         print(p_text)
     finally:
         speeches.append(p_text)
         # Do something with the paragraph text
-        
+
 
 print(speeches)
 

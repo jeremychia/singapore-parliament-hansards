@@ -24,9 +24,9 @@ Making information from Singapore Parliament's Hansard more accessible and diges
   ```
   conda activate sgparlhansard
   ```
-  
+
 4. Install the project requirements
 
   ```
   pip install -r requirements.txt
-  ```  
+  ```

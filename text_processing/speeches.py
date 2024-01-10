@@ -9,11 +9,13 @@ from gensim import corpora, models
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.decomposition import LatentDirichletAllocation
 from sklearn.model_selection import GridSearchCV
+
 # Evaluation Metrics
 from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 from gensim.models import CoherenceModel
 import matplotlib.pyplot as plt
+
 
 def get_dates(script_dir, start_date, end_date):
     """
@@ -39,14 +41,15 @@ def get_dates(script_dir, start_date, end_date):
     script_dir = os.path.dirname(os.path.abspath(__file__))
     root_directory, _ = os.path.split(script_dir)
 
-    dates = pd.read_csv(os.path.join(root_directory, 'seeds', 'dates.csv'))
-    dates['Sitting_Date'] = pd.to_datetime(dates['Sitting_Date'],
-                                           format='%Y-%m-%d')
+    dates = pd.read_csv(os.path.join(root_directory, "seeds", "dates.csv"))
+    dates["Sitting_Date"] = pd.to_datetime(dates["Sitting_Date"], format="%Y-%m-%d")
 
-    date_range_boolean = (dates['Sitting_Date'] >= start_date)\
-                         & (dates['Sitting_Date'] <= end_date)
+    date_range_boolean = (dates["Sitting_Date"] >= start_date) & (
+        dates["Sitting_Date"] <= end_date
+    )
 
-    return list(dates[date_range_boolean]['Sitting_Date'].astype(str))
+    return list(dates[date_range_boolean]["Sitting_Date"].astype(str))
+
 
 def get_source_file_path(csv_subfolder):
     """
@@ -72,6 +75,7 @@ def get_source_file_path(csv_subfolder):
 
     return os.path.join(root_directory, csv_subfolder), root_directory
 
+
 def get_speech_file_names(source_file_path, dates_to_process):
     """
     Generate a list of speech file names based on the provided source file path and dates.
@@ -91,14 +95,15 @@ def get_speech_file_names(source_file_path, dates_to_process):
     ['/path/to/speech_files/2023-01-01-speeches.csv', '/path/to/speech_files/2023-02-15-speeches.csv', '/path/to/speech_files/2023-05-08-speeches.csv']
     """
 
+    speech_file_names = [
+        os.path.join(source_file_path, f"{date}-speeches.csv")
+        for date in dates_to_process
+    ]
 
-    speech_file_names  = [os.path.join(source_file_path, f"{date}-speeches.csv")\
-            for date in dates_to_process]
+    return speech_file_names
 
-    return speech_file_names 
 
 def clean_text(text, additional_stopwords=[]):
-
     """
     Clean and preprocess the input text by performing the following steps:
 
@@ -134,18 +139,18 @@ def clean_text(text, additional_stopwords=[]):
     text = text.lower()
 
     # Remove special characters and punctuation
-    text = re.sub(r'[^a-zA-Z0-9\s]', '', text)
+    text = re.sub(r"[^a-zA-Z0-9\s]", "", text)
 
     # Remove numbers
-    text = re.sub(r'\d+', '', text)
+    text = re.sub(r"\d+", "", text)
 
     # Tokenization (breaking text into words)
     tokens = word_tokenize(text)
 
     # Remove stop words
-    stop_words = set(stopwords.words('english'))
+    stop_words = set(stopwords.words("english"))
     stop_words.update(additional_stopwords)
-    
+
     tokens = [word for word in tokens if word not in stop_words]
 
     # Remove short words
@@ -156,10 +161,10 @@ def clean_text(text, additional_stopwords=[]):
     tokens = [lemmatizer.lemmatize(word) for word in tokens]
 
     # Join the tokens back into text
-    cleaned_text = ' '.join(tokens)
+    cleaned_text = " ".join(tokens)
 
     return cleaned_text
-    
+
 
 def get_mp_name(x):
     """
@@ -182,21 +187,22 @@ def get_mp_name(x):
     "John Doe"
     """
 
-    if pd.notna(x) and 'SPEAKER' in x:
-        temp = re.search(r'\(([^()]+)\(', x)
+    if pd.notna(x) and "SPEAKER" in x:
+        temp = re.search(r"\(([^()]+)\(", x)
         if temp:
-            match = re.sub(r'^(?:Mr|Mrs|Miss|Mdm|Ms|Dr|Prof)\s+', '', temp.group(1))
+            match = re.sub(r"^(?:Mr|Mrs|Miss|Mdm|Ms|Dr|Prof)\s+", "", temp.group(1))
             return match
         else:
-            return ''
+            return ""
     elif pd.notna(x):
-        match = re.search(r'(?:Mr|Mrs|Miss|Mdm|Ms|Dr|Prof)\s+([\w\s-]+)', x)
+        match = re.search(r"(?:Mr|Mrs|Miss|Mdm|Ms|Dr|Prof)\s+([\w\s-]+)", x)
         if match:
             return match.group(1)
         else:
-            return ''
+            return ""
     else:
-        return ''
+        return ""
+
 
 def prepare_lda_model(cleaned_text):
     """
@@ -234,6 +240,7 @@ def prepare_lda_model(cleaned_text):
 
     return tokenized_text, dictionary, corpus
 
+
 def intiailise_lda_model(corpus, dictionary, num_topics):
     """
     Initialize and train a Latent Dirichlet Allocation (LDA) model.
@@ -255,13 +262,12 @@ def intiailise_lda_model(corpus, dictionary, num_topics):
     LdaModel(num_terms=10, num_topics=5, decay=0.5, chunksize=2000)
     """
     # Step 4: Apply the LDA model
-    lda_model = models.LdaModel(corpus,
-                                num_topics=num_topics,
-                                id2word=dictionary,
-                                passes=15,
-                                random_state=42)
+    lda_model = models.LdaModel(
+        corpus, num_topics=num_topics, id2word=dictionary, passes=15, random_state=42
+    )
 
     return lda_model
+
 
 def evaluate_model(cleaned_text, n_components_range):
     """
@@ -285,7 +291,7 @@ def evaluate_model(cleaned_text, n_components_range):
     [-8.123, -7.512, -7.234]
     """
     documents = cleaned_text.tolist()
-    
+
     vectorizer = CountVectorizer()
     dtm = vectorizer.fit_transform(documents)
 
@@ -294,7 +300,6 @@ def evaluate_model(cleaned_text, n_components_range):
     perplexity_scores = []
 
     for num_topics in n_components_range:
-
         lda_model = intiailise_lda_model(corpus, dictionary, num_topics)
 
         # Calculate perplexity score
@@ -303,6 +308,7 @@ def evaluate_model(cleaned_text, n_components_range):
         perplexity_scores.append(perplexity_score)
 
     return perplexity_scores
+
 
 def plot_grid_search(n_components_range, perplexity_scores):
     """
@@ -324,13 +330,14 @@ def plot_grid_search(n_components_range, perplexity_scores):
     >>> plot_grid_search(n_components_range, perplexity_scores)
     (Plots the graph)
     """
-    plt.plot(n_components_range, perplexity_scores, marker='o')
-    plt.xlabel('Number of Topics')
-    plt.ylabel('Log Perplexity')
-    plt.title('Optimal Number of Topics for LDA')
+    plt.plot(n_components_range, perplexity_scores, marker="o")
+    plt.xlabel("Number of Topics")
+    plt.ylabel("Log Perplexity")
+    plt.title("Optimal Number of Topics for LDA")
     plt.show()
 
     return 0
+
 
 def get_optimal_topics(n_components_range, perplexity_scores):
     """
@@ -358,16 +365,26 @@ def get_optimal_topics(n_components_range, perplexity_scores):
 
     return optimal_num_topics
 
+
 ### Variables
 
-csv_subfolder = 'code_output'
+csv_subfolder = "code_output"
 script_dir = os.path.dirname(os.path.abspath(__file__))
-start_date = '2020-07-25'
-end_date = '2023-12-01'
+start_date = "2020-07-25"
+end_date = "2023-12-01"
 dates_to_process = get_dates(script_dir, start_date, end_date)
-additional_stopwords = ['singapore', 'speaker', 'minister', 'asked', 'question',\
-                        'please', 'whether', 'year', 'may']
-n_components_range = [i+1 for i in range(15)]
+additional_stopwords = [
+    "singapore",
+    "speaker",
+    "minister",
+    "asked",
+    "question",
+    "please",
+    "whether",
+    "year",
+    "may",
+]
+n_components_range = [i + 1 for i in range(15)]
 
 ### Main run here
 
@@ -379,30 +396,29 @@ df = pd.concat(dfs, ignore_index=True)
 
 ## Processing
 
-df['mp_name'] = df['Speaker'].apply(get_mp_name)
-df['cleaned_text'] = df['Text']\
-                     .apply(lambda x: clean_text(x, additional_stopwords))
+df["mp_name"] = df["Speaker"].apply(get_mp_name)
+df["cleaned_text"] = df["Text"].apply(lambda x: clean_text(x, additional_stopwords))
 
 ## Topics
 
-perplexity_scores = evaluate_model(df['cleaned_text'], n_components_range)
+perplexity_scores = evaluate_model(df["cleaned_text"], n_components_range)
 plot_grid_search(n_components_range, perplexity_scores)
 optimal_num_topics = get_optimal_topics(n_components_range, perplexity_scores)
 
-tokenized_text, dictionary, corpus = prepare_lda_model(df['cleaned_text'])
+tokenized_text, dictionary, corpus = prepare_lda_model(df["cleaned_text"])
 lda_model = intiailise_lda_model(corpus, dictionary, optimal_num_topics)
-df['topics'] = df['cleaned_text'].apply(lambda x: lda_model[dictionary.doc2bow(x.split())])
+df["topics"] = df["cleaned_text"].apply(
+    lambda x: lda_model[dictionary.doc2bow(x.split())]
+)
 
 for index, row in df.iterrows():
     print(f"Document {index + 1}: {row['cleaned_text']}")
     print("Topics:")
-    for topic, score in row['topics']:
-        print(f"  Topic {topic + 1}: {lda_model.print_topic(topic)} (Score: {score:.4f})")
+    for topic, score in row["topics"]:
+        print(
+            f"  Topic {topic + 1}: {lda_model.print_topic(topic)} (Score: {score:.4f})"
+        )
     print("\n")
 
     if index > 5:
         break
-
-
-
-
